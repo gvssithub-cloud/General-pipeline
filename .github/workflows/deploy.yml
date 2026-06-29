@@ -38,6 +38,13 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Validate Route53 hosted zone ID
+        run: |
+          if [ -z "$HOSTED_ZONE_ID" ]; then
+            echo 'HOSTED_ZONE_ID is required for DNS and ACM validation.'
+            exit 1
+          fi
+
       - name: Install dependencies
         run: npm install
 

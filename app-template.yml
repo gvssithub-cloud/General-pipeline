@@ -14,18 +14,10 @@ Parameters:
     Description: The domain name for the website.
   HostedZoneId:
     Type: String
-    Default: ''
-    Description: Optional existing Route53 hosted zone ID for the domain. Leave empty to create a new hosted zone.
-Conditions:
-  CreateHostedZone: !Equals [ !Ref HostedZoneId, '' ]
+    Description: Existing Route53 hosted zone ID for the domain.
+    AllowedPattern: '.+'
+    ConstraintDescription: HostedZoneId must be a non-empty Route53 hosted zone ID.
 Resources:
-  WebsiteHostedZone:
-    Condition: CreateHostedZone
-    Type: AWS::Route53::HostedZone
-    Properties:
-      Name: !Ref DomainName
-      HostedZoneConfig:
-        Comment: Hosted zone for the website domain
   WebsiteCertificate:
     Type: AWS::CertificateManager::Certificate
     Properties:
@@ -33,7 +25,7 @@ Resources:
       ValidationMethod: DNS
       DomainValidationOptions:
         - DomainName: !Ref DomainName
-          HostedZoneId: !If [ CreateHostedZone, !Ref WebsiteHostedZone, !Ref HostedZoneId ]
+          HostedZoneId: !Ref HostedZoneId
   WebsiteExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -195,7 +187,7 @@ Resources:
   WebsiteRecord:
     Type: AWS::Route53::RecordSet
     Properties:
-      HostedZoneId: !If [ CreateHostedZone, !Ref WebsiteHostedZone, !Ref HostedZoneId ]
+      HostedZoneId: !Ref HostedZoneId
       Name: !Ref DomainName
       Type: A
       AliasTarget:
