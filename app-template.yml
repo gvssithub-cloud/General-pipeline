@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Application stack for arss-it-solutions.com using Lambda behind an ALB.
+Description: Application stack for arss-it-solutions.com using Lambda behind an ALB with HTTPS.
 Parameters:
   LambdaCodeBucket:
     Type: String
@@ -15,10 +15,35 @@ Parameters:
   HostedZoneId:
     Type: String
     Default: ''
-    Description: Optional Route53 hosted zone ID for the domain.
+    Description: Optional existing Route53 hosted zone ID for the domain. Leave empty to create a new hosted zone.
 Conditions:
-  HasHostedZone: !Not [ !Equals [ !Ref HostedZoneId, '' ] ]
+  HasHostedZoneId: !Not [ !Equals [ !Ref HostedZoneId, '' ] ]
+  CreateHostedZone: !Equals [ !Ref HostedZoneId, '' ]
 Resources:
+  WebsiteHostedZone:
+    Condition: CreateHostedZone
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Ref DomainName
+      HostedZoneConfig:
+        Comment: Hosted zone for the website domain
+  WebsiteCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !If [ CreateHostedZone, !Ref WebsiteHostedZone, !Ref HostedZoneId ]
+  WebsiteCertificateValidationRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !If [ CreateHostedZone, !Ref WebsiteHostedZone, !Ref HostedZoneId ]
+      Name: !GetAtt WebsiteCertificate.DomainValidationOptions.0.ResourceRecord.Name
+      Type: !GetAtt WebsiteCertificate.DomainValidationOptions.0.ResourceRecord.Type
+      TTL: 300
+      ResourceRecords:
+        - !GetAtt WebsiteCertificate.DomainValidationOptions.0.ResourceRecord.Value
   WebsiteExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -110,12 +135,16 @@ Resources:
   AlbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow HTTP access to the ALB
+      GroupDescription: Allow HTTP and HTTPS access to the ALB
       VpcId: !Ref AppVpc
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
           CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: -1
@@ -143,27 +172,40 @@ Resources:
       TargetType: lambda
       Targets:
         - Id: !GetAtt WebsiteFunction.Arn
-  AlbListener:
+  HttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref WebsiteCertificate
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref AlbTargetGroup
+  HttpListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: 80
       Protocol: HTTP
       DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref AlbTargetGroup
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTPS
+            Port: '443'
+            StatusCode: HTTP_301
   WebsiteFunctionPermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref WebsiteFunction
       Action: lambda:InvokeFunction
       Principal: elasticloadbalancing.amazonaws.com
-      SourceArn: !Sub "arn:aws:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:targetgroup/arss-it-solutions-lambda-target/*"
+      SourceArn: !GetAtt AlbTargetGroup.Arn
   WebsiteRecord:
-    Condition: HasHostedZone
     Type: AWS::Route53::RecordSet
     Properties:
-      HostedZoneId: !Ref HostedZoneId
+      HostedZoneId: !If [ CreateHostedZone, !Ref WebsiteHostedZone, !Ref HostedZoneId ]
       Name: !Ref DomainName
       Type: A
       AliasTarget:
@@ -175,10 +217,10 @@ Outputs:
     Value: !GetAtt ApplicationLoadBalancer.DNSName
   WebsiteUrl:
     Description: URL to access the site
-    Value: !If
-      - HasHostedZone
-      - !Sub "http://${DomainName}"
-      - !Sub "http://${ApplicationLoadBalancer.DNSName}"
+    Value: !Sub "https://${DomainName}"
   ApplicationLoadBalancerArn:
     Description: Application Load Balancer ARN
     Value: !Ref ApplicationLoadBalancer
+  HostedZoneNameServers:
+    Description: Name servers for the hosted zone when created by this stack
+    Value: !If [ CreateHostedZone, !Join [ ',', !GetAtt WebsiteHostedZone.NameServers ], '' ]
