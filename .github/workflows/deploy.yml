@@ -1,0 +1,63 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      LAMBDA_KEY: lambda.zip
+      DOMAIN_NAME: arss-it-solutions.com
+      HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
+      LAMBDA_BUCKET: ${{ secrets.LAMBDA_BUCKET }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: arn:aws:iam::089959489141:role/ARSS_IT_SOLUTIONS_WEBSITE_GIT_ROLE
+          role-session-name: github-actions-deploy
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Package Lambda artifact
+        run: |
+          rm -f $LAMBDA_KEY
+          zip -r $LAMBDA_KEY index.js package.json public node_modules
+
+      - name: Ensure Lambda artifact bucket exists
+        run: |
+          if ! aws s3api head-bucket --bucket "$LAMBDA_BUCKET" 2>/dev/null; then
+            aws s3 mb "s3://$LAMBDA_BUCKET"
+          fi
+
+      - name: Upload Lambda package to S3
+        run: aws s3 cp "$LAMBDA_KEY" "s3://$LAMBDA_BUCKET/$LAMBDA_KEY"
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name arss-it-solutions-app \
+            --template-file app-template.yml \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              LambdaCodeBucket=$LAMBDA_BUCKET \
+              LambdaCodeKey=$LAMBDA_KEY \
+              DomainName=$DOMAIN_NAME \
+              HostedZoneId=$HOSTED_ZONE_ID
