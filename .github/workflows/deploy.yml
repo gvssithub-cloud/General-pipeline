@@ -17,6 +17,7 @@ jobs:
       DOMAIN_NAME: arss-it-solutions.com
       HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
       LAMBDA_BUCKET: ${{ secrets.LAMBDA_BUCKET }}
+      AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,14 +25,14 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v3
         with:
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION || 'us-east-2' }}
           role-to-assume: arn:aws:iam::089959489141:role/ARSS_IT_SOLUTIONS_WEBSITE_GIT_ROLE
           role-session-name: github-actions-deploy
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Install dependencies
         run: npm install
