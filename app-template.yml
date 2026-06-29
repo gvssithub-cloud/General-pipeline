@@ -149,7 +149,6 @@ Resources:
       Type: application
   AlbTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    DependsOn: WebsiteFunction
     Properties:
       Name: arss-it-solutions-lambda-target
       TargetType: lambda
@@ -181,10 +180,10 @@ Resources:
   WebsiteFunctionPermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !Ref WebsiteFunction
+      FunctionName: !GetAtt WebsiteFunction.Arn
       Action: lambda:InvokeFunction
       Principal: elasticloadbalancing.amazonaws.com
-      SourceArn: !Ref AlbTargetGroup
+      SourceArn: !GetAtt AlbTargetGroup.TargetGroupArn
   WebsiteRecord:
     Type: AWS::Route53::RecordSet
     Properties:
