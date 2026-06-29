@@ -203,6 +203,3 @@ Outputs:
   ApplicationLoadBalancerArn:
     Description: Application Load Balancer ARN
     Value: !Ref ApplicationLoadBalancer
-  HostedZoneNameServers:
-    Description: Name servers for the hosted zone when created by this stack
-    Value: !If [ CreateHostedZone, !Join [ ',', !GetAtt WebsiteHostedZone.NameServers ], '' ]
