@@ -149,7 +149,7 @@ Resources:
       Type: application
   AlbTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    DependsOn: WebsiteFunctionPermission
+    DependsOn: WebsiteFunction
     Properties:
       Name: arss-it-solutions-lambda-target
       TargetType: lambda
