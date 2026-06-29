@@ -180,9 +180,10 @@ Resources:
   WebsiteFunctionPermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !Ref WebsiteFunction
+      FunctionName: !GetAtt WebsiteFunction.Arn
       Action: lambda:InvokeFunction
       Principal: elasticloadbalancing.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
       SourceArn: !Ref AlbTargetGroup
   WebsiteRecord:
     Type: AWS::Route53::RecordSet
