@@ -1,0 +1,12 @@
+{
+  "name": "arss-it-solutions",
+  "version": "0.1.0",
+  "description": "Node.js website for arss-it-solutions.com",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
