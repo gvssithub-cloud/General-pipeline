@@ -180,8 +180,7 @@ Resources:
   WebsiteFunctionPermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !GetAtt WebsiteFunction.Arn
-      StatementId: AlbInvokePermission
+      FunctionName: !Ref WebsiteFunction
       Action: lambda:InvokeFunction
       Principal: elasticloadbalancing.amazonaws.com
       SourceArn: !Ref AlbTargetGroup
