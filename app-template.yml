@@ -183,7 +183,7 @@ Resources:
       FunctionName: !Ref WebsiteFunction
       Action: lambda:InvokeFunction
       Principal: elasticloadbalancing.amazonaws.com
-      SourceArn: !GetAtt AlbTargetGroup.Arn
+      SourceArn: !Ref AlbTargetGroup
   WebsiteRecord:
     Type: AWS::Route53::RecordSet
     Properties:
