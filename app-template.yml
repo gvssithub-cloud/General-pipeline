@@ -184,10 +184,7 @@ Resources:
       StatementId: AlbInvokePermission
       Action: lambda:InvokeFunction
       Principal: elasticloadbalancing.amazonaws.com
-      SourceArn:
-        Fn::Sub:
-          - arn:aws:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:${TargetGroupFullName}
-          - TargetGroupFullName: !GetAtt AlbTargetGroup.TargetGroupFullName
+      SourceArn: !Ref AlbTargetGroup
   WebsiteRecord:
     Type: AWS::Route53::RecordSet
     Properties:
