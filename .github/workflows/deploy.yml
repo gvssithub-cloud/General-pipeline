@@ -29,6 +29,10 @@ jobs:
           role-to-assume: arn:aws:iam::089959489141:role/ARSS_IT_SOLUTIONS_WEBSITE_GIT_ROLE
           role-session-name: github-actions-deploy
 
+      - name: Ensure Elastic Load Balancing service-linked role exists
+        run: |
+          aws iam create-service-linked-role --aws-service-name elasticloadbalancing.amazonaws.com || true
+
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
