@@ -3,7 +3,7 @@ name: Deploy to AWS
 on:
   push:
     branches:
-      - dev
+      - develop
   workflow_dispatch: {}
 
 jobs:
@@ -16,8 +16,8 @@ jobs:
       LAMBDA_KEY: lambda.zip
       DOMAIN_NAME: arss-it-solutions.com
       HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
-      LAMBDA_BUCKET: ${{ secrets.LAMBDA_BUCKET }}
       AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
+      ARTIFACT_STACK_NAME: arss-it-solutions-artifacts
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -42,14 +42,23 @@ jobs:
           rm -f $LAMBDA_KEY
           zip -r $LAMBDA_KEY index.js package.json public node_modules
 
-      - name: Ensure Lambda artifact bucket exists
+      - name: Create artifact bucket stack
         run: |
-          if ! aws s3api head-bucket --bucket "$LAMBDA_BUCKET" 2>/dev/null; then
-            aws s3 mb "s3://$LAMBDA_BUCKET"
-          fi
+          aws cloudformation deploy \
+            --stack-name "$ARTIFACT_STACK_NAME" \
+            --template-file infra-template.yml
+
+      - name: Retrieve artifact bucket name
+        id: artifact-bucket
+        run: |
+          BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name "$ARTIFACT_STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='ArtifactBucketName'].OutputValue" \
+            --output text)
+          echo "ARTIFACT_BUCKET=$BUCKET" >> $GITHUB_ENV
 
       - name: Upload Lambda package to S3
-        run: aws s3 cp "$LAMBDA_KEY" "s3://$LAMBDA_BUCKET/$LAMBDA_KEY"
+        run: aws s3 cp "$LAMBDA_KEY" "s3://$ARTIFACT_BUCKET/$LAMBDA_KEY"
 
       - name: Deploy CloudFormation stack
         run: |
@@ -58,7 +67,7 @@ jobs:
             --template-file app-template.yml \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
             --parameter-overrides \
-              LambdaCodeBucket=$LAMBDA_BUCKET \
+              LambdaCodeBucket=$ARTIFACT_BUCKET \
               LambdaCodeKey=$LAMBDA_KEY \
               DomainName=$DOMAIN_NAME \
               HostedZoneId=$HOSTED_ZONE_ID
