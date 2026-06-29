@@ -31,7 +31,11 @@ jobs:
 
       - name: Ensure Elastic Load Balancing service-linked role exists
         run: |
-          aws iam create-service-linked-role --aws-service-name elasticloadbalancing.amazonaws.com || true
+          if ! aws iam get-role --role-name AWSServiceRoleForElasticLoadBalancing >/dev/null 2>&1; then
+            aws iam create-service-linked-role --aws-service-name elasticloadbalancing.amazonaws.com || true
+          else
+            echo 'Elastic Load Balancing service-linked role already exists.'
+          fi
 
       - name: Set up Node.js
         uses: actions/setup-node@v5

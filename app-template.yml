@@ -181,6 +181,7 @@ Resources:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !GetAtt WebsiteFunction.Arn
+      StatementId: AlbInvokePermission
       Action: lambda:InvokeFunction
       Principal: elasticloadbalancing.amazonaws.com
       SourceAccount: !Ref AWS::AccountId
