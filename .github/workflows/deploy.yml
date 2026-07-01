@@ -13,9 +13,10 @@ jobs:
       contents: read
       id-token: write
     env:
-      LAMBDA_KEY: lambda.zip
+      LAMBDA_KEY: lambda-${{ github.sha }}.zip
       DOMAIN_NAME: arss-it-solutions.com
       HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
+      CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN || 'arn:aws:acm:us-east-2:089959489141:certificate/1f78da33-775f-46f7-85f7-8cab31b3e0e2' }}
       AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-2' }}
       ARTIFACT_STACK_NAME: arss-it-solutions-artifacts
     steps:
@@ -85,4 +86,5 @@ jobs:
               LambdaCodeBucket=$ARTIFACT_BUCKET \
               LambdaCodeKey=$LAMBDA_KEY \
               DomainName=$DOMAIN_NAME \
-              HostedZoneId=$HOSTED_ZONE_ID
+              HostedZoneId=$HOSTED_ZONE_ID \
+              CertificateArn=$CERTIFICATE_ARN
