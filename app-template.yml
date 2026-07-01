@@ -14,14 +14,15 @@ Parameters:
     Description: The domain name for the website.
   HostedZoneId:
     Type: String
-    Description: Existing Route53 hosted zone ID for the domain.
-    AllowedPattern: '.+'
-    ConstraintDescription: HostedZoneId must be a non-empty Route53 hosted zone ID.
+    Default: ''
+    Description: Route53 hosted zone ID for the domain. Leave empty to skip DNS record creation.
   CertificateArn:
     Type: String
-    Description: ARN of the existing ACM certificate for the domain.
-    AllowedPattern: 'arn:aws:acm:.*'
-    ConstraintDescription: CertificateArn must be a valid ACM certificate ARN.
+    Default: ''
+    Description: ARN of the existing ACM certificate for the domain. Leave empty for HTTP-only.
+Conditions:
+  HasCertificate: !Not [!Equals [!Ref CertificateArn, '']]
+  HasHostedZone: !Not [!Equals [!Ref HostedZoneId, '']]
 Resources:
   WebsiteExecutionRole:
     Type: AWS::IAM::Role
@@ -160,6 +161,7 @@ Resources:
         - Id: !GetAtt WebsiteFunction.Arn
   HttpsListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: HasCertificate
     Properties:
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: 443
@@ -176,11 +178,14 @@ Resources:
       Port: 80
       Protocol: HTTP
       DefaultActions:
-        - Type: redirect
-          RedirectConfig:
-            Protocol: HTTPS
-            Port: '443'
-            StatusCode: HTTP_301
+        - Type: !If [HasCertificate, redirect, forward]
+          RedirectConfig: !If
+            - HasCertificate
+            - Protocol: HTTPS
+              Port: '443'
+              StatusCode: HTTP_301
+            - !Ref AWS::NoValue
+          TargetGroupArn: !If [HasCertificate, !Ref AWS::NoValue, !Ref AlbTargetGroup]
   WebsiteFunctionPermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -190,6 +195,7 @@ Resources:
       SourceArn: !Sub "arn:${AWS::Partition}:elasticloadbalancing:${AWS::Region}:${AWS::AccountId}:targetgroup/*"
   WebsiteRecord:
     Type: AWS::Route53::RecordSet
+    Condition: HasHostedZone
     Properties:
       HostedZoneId: !Ref HostedZoneId
       Name: !Ref DomainName
