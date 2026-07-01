@@ -17,15 +17,12 @@ Parameters:
     Description: Existing Route53 hosted zone ID for the domain.
     AllowedPattern: '.+'
     ConstraintDescription: HostedZoneId must be a non-empty Route53 hosted zone ID.
+  CertificateArn:
+    Type: String
+    Description: ARN of the existing ACM certificate for the domain.
+    AllowedPattern: 'arn:aws:acm:.*'
+    ConstraintDescription: CertificateArn must be a valid ACM certificate ARN.
 Resources:
-  WebsiteCertificate:
-    Type: AWS::CertificateManager::Certificate
-    Properties:
-      DomainName: !Ref DomainName
-      ValidationMethod: DNS
-      DomainValidationOptions:
-        - DomainName: !Ref DomainName
-          HostedZoneId: !Ref HostedZoneId
   WebsiteExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -48,8 +45,14 @@ Resources:
       Code:
         S3Bucket: !Ref LambdaCodeBucket
         S3Key: !Ref LambdaCodeKey
-      Timeout: 30
-      MemorySize: 512
+      Timeout: 60
+      MemorySize: 1024
+      EphemeralStorage:
+        Size: 512
+      Environment:
+        Variables:
+          NODE_ENV: production
+          PORT: '9000'
   AppVpc:
     Type: AWS::EC2::VPC
     Properties:
@@ -162,7 +165,7 @@ Resources:
       Port: 443
       Protocol: HTTPS
       Certificates:
-        - CertificateArn: !Ref WebsiteCertificate
+        - CertificateArn: !Ref CertificateArn
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref AlbTargetGroup
