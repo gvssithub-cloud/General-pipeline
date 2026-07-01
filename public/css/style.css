@@ -243,47 +243,48 @@ a:hover {
 
 .quote-line {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 50%;
+  width: min(100% - 3rem, 920px);
   top: 50%;
   opacity: 0;
-  transform: translateY(-50%) translateY(24px);
+  transform: translate(-50%, -50%);
   font-size: clamp(1.4rem, 2vw, 2.1rem);
   font-weight: 700;
   color: #0f3760;
   line-height: 1.25;
   text-align: center;
   letter-spacing: 0.02em;
-  padding: 0 1.5rem;
-  animation: fadeText 28s ease infinite;
+  padding: 0;
+  animation: fadeText 35s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .quote-line:nth-child(1) {
   animation-delay: 0s;
 }
 .quote-line:nth-child(2) {
-  animation-delay: 4s;
+  animation-delay: 5s;
 }
 .quote-line:nth-child(3) {
-  animation-delay: 8s;
+  animation-delay: 10s;
 }
 .quote-line:nth-child(4) {
-  animation-delay: 12s;
+  animation-delay: 15s;
 }
 .quote-line:nth-child(5) {
-  animation-delay: 16s;
-}
-.quote-line:nth-child(6) {
   animation-delay: 20s;
 }
+.quote-line:nth-child(6) {
+  animation-delay: 25s;
+}
 .quote-line:nth-child(7) {
-  animation-delay: 24s;
+  animation-delay: 30s;
 }
 
 @keyframes fadeText {
-  0%, 14%, 100% { opacity: 0; transform: translateY(-50%) translateY(24px); }
-  16%, 34% { opacity: 1; transform: translateY(-50%) translateY(0); }
-  36%, 100% { opacity: 0; transform: translateY(-50%) translateY(-24px); }
+  0%, 100% { opacity: 0; }
+  2%, 9% { opacity: 1; }
+  13%, 100% { opacity: 0; }
 }
 
 .hero-actions {
