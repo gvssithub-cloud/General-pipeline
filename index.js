@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,165 +15,151 @@ app.get('/api/status', (req, res) => {
 });
 
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('Not Found');
+  }
 });
 
-// Lambda handler for ALB
+// Lambda handler for ALB integration
 exports.handler = async (event, context) => {
-  console.log('ALB Event:', JSON.stringify(event, null, 2));
+  console.log('Lambda invoked with event:', JSON.stringify(event));
   context.callbackWaitsForEmptyEventLoop = false;
 
-  return new Promise((resolve) => {
-    // Create mock request and response objects
-    const mockReq = {
-      method: event.httpMethod || 'GET',
-      url: event.path || '/',
-      headers: event.headers || {},
-      body: event.body || '',
-      rawBody: event.body || ''
-    };
+  try {
+    return await new Promise((resolve) => {
+      // Parse the request
+      const httpMethod = event.httpMethod || 'GET';
+      const path = event.path || '/';
+      const headers = event.headers || {};
+      const body = event.body || '';
 
-    let responseStatusCode = 200;
-    let responseHeaders = {};
-    let responseBody = '';
-    let responseSent = false;
+      console.log(`Processing ${httpMethod} ${path}`);
 
-    const mockRes = {
-      statusCode: 200,
-      statusMessage: 'OK',
-      headers: {},
+      // Create mock request/response
+      let statusCode = 200;
+      let responseHeaders = { 'Content-Type': 'text/html' };
+      let responseBody = '';
 
-      status(code) {
-        responseStatusCode = code;
-        this.statusCode = code;
-        return this;
-      },
+      const req = {
+        method: httpMethod,
+        url: path,
+        path: path,
+        headers: headers,
+        body: body,
+        on: () => {}
+      };
 
-      setHeader(name, value) {
-        responseHeaders[name.toLowerCase()] = value;
-        this.headers[name.toLowerCase()] = value;
-      },
-
-      getHeader(name) {
-        return this.headers[name.toLowerCase()];
-      },
-
-      writeHead(statusCode, headers) {
-        responseStatusCode = statusCode;
-        if (headers) {
-          Object.keys(headers).forEach(key => {
-            responseHeaders[key.toLowerCase()] = headers[key];
-          });
-        }
-      },
-
-      write(chunk) {
-        if (typeof chunk === 'string') {
-          responseBody += chunk;
-        } else if (Buffer.isBuffer(chunk)) {
-          responseBody += chunk.toString();
-        }
-      },
-
-      end(chunk) {
-        if (chunk) {
-          if (typeof chunk === 'string') {
-            responseBody += chunk;
-          } else if (Buffer.isBuffer(chunk)) {
-            responseBody += chunk.toString();
+      const res = {
+        statusCode: 200,
+        status(code) {
+          statusCode = code;
+          return this;
+        },
+        setHeader(key, value) {
+          responseHeaders[key] = value;
+        },
+        writeHead(code, hdrs) {
+          statusCode = code;
+          if (hdrs) {
+            Object.assign(responseHeaders, hdrs);
           }
-        }
-
-        if (!responseSent) {
-          responseSent = true;
-          const response = {
-            statusCode: responseStatusCode,
-            statusDescription: `${responseStatusCode} OK`,
+        },
+        write(chunk) {
+          responseBody += chunk || '';
+        },
+        end(chunk) {
+          if (chunk) responseBody += chunk;
+          resolve({
+            statusCode: statusCode,
+            statusDescription: `${statusCode} OK`,
             headers: responseHeaders,
             body: responseBody,
             isBase64Encoded: false
-          };
-          console.log('ALB Response:', JSON.stringify(response, null, 2));
-          resolve(response);
-        }
-      },
-
-      json(data) {
-        this.setHeader('Content-Type', 'application/json');
-        this.end(JSON.stringify(data));
-      },
-
-      send(data) {
-        if (typeof data === 'string') {
-          this.setHeader('Content-Type', 'text/html; charset=utf-8');
-        } else if (typeof data === 'object') {
-          this.setHeader('Content-Type', 'application/json');
-          data = JSON.stringify(data);
-        }
-        this.end(data);
-      },
-
-      sendFile(filePath, callback) {
-        const fs = require('fs');
-        fs.readFile(filePath, 'utf8', (err, data) => {
-          if (err) {
-            console.error('Error reading file:', err);
-            this.statusCode = 404;
-            this.end('Not Found');
-          } else {
-            this.setHeader('Content-Type', 'text/html; charset=utf-8');
-            this.end(data);
-          }
-          if (callback) callback(err);
-        });
-      }
-    };
-
-    // Call the Express app with our mock request/response
-    try {
-      app(mockReq, mockRes);
-
-      // Set a timeout in case the handler doesn't call res.end()
-      setTimeout(() => {
-        if (!responseSent) {
-          responseSent = true;
+          });
+        },
+        json(data) {
+          responseHeaders['Content-Type'] = 'application/json';
+          responseBody = JSON.stringify(data);
           resolve({
-            statusCode: 500,
-            statusDescription: '500 Internal Server Error',
-            headers: { 'Content-Type': 'text/plain' },
-            body: 'Request timeout',
+            statusCode: statusCode,
+            statusDescription: `${statusCode} OK`,
+            headers: responseHeaders,
+            body: responseBody,
             isBase64Encoded: false
           });
+        },
+        send(data) {
+          if (typeof data === 'object') {
+            this.json(data);
+          } else {
+            responseHeaders['Content-Type'] = 'text/html';
+            responseBody = data;
+            resolve({
+              statusCode: statusCode,
+              statusDescription: `${statusCode} OK`,
+              headers: responseHeaders,
+              body: responseBody,
+              isBase64Encoded: false
+            });
+          }
+        },
+        sendFile(filePath) {
+          try {
+            const content = fs.readFileSync(filePath, 'utf8');
+            responseHeaders['Content-Type'] = 'text/html';
+            responseBody = content;
+            resolve({
+              statusCode: 200,
+              statusDescription: '200 OK',
+              headers: responseHeaders,
+              body: responseBody,
+              isBase64Encoded: false
+            });
+          } catch (err) {
+            console.error('Error reading file:', err);
+            resolve({
+              statusCode: 404,
+              statusDescription: '404 Not Found',
+              headers: { 'Content-Type': 'text/plain' },
+              body: 'Not Found',
+              isBase64Encoded: false
+            });
+          }
         }
-      }, 25000); // 25 second timeout (Lambda has 30s max by default)
+      };
 
-    } catch (error) {
-      console.error('Error:', error);
-      if (!responseSent) {
-        responseSent = true;
+      // Call Express
+      app(req, res);
+
+      // Timeout fallback
+      setTimeout(() => {
         resolve({
-          statusCode: 500,
-          statusDescription: '500 Internal Server Error',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ error: error.message }),
+          statusCode: 504,
+          statusDescription: '504 Gateway Timeout',
+          headers: { 'Content-Type': 'text/plain' },
+          body: 'Request timeout',
           isBase64Encoded: false
         });
-      }
-    }
-  });
+      }, 25000);
+    });
+  } catch (error) {
+    console.error('Handler error:', error);
+    return {
+      statusCode: 500,
+      statusDescription: '500 Internal Server Error',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: error.message }),
+      isBase64Encoded: false
+    };
+  }
 };
 
-// Local development mode
+// Local development
 if (process.env.NODE_ENV !== 'production' && !process.env.LAMBDA_TASK_ROOT) {
-  const server = app.listen(PORT, () => {
+  app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
-  });
-
-  process.on('SIGTERM', () => {
-    console.log('SIGTERM received, shutting down');
-    server.close(() => {
-      console.log('Server closed');
-      process.exit(0);
-    });
   });
 }
