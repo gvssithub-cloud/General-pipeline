@@ -23,8 +23,8 @@ Parameters:
     Description: Optional Route53 hosted zone ID for the domain.
   CertificateArn:
     Type: String
-    Default: ''
-    Description: ARN of the ACM certificate for HTTPS. Leave empty to create without HTTPS.
+    Default: 'arn:aws:acm:us-east-2:089959489141:certificate/1f78da33-775f-46f7-85f7-8cab31b3e0e2'
+    Description: ARN of the ACM certificate for HTTPS.
   AppStackName:
     Type: String
     Default: arss-it-solutions-app
