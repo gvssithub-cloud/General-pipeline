@@ -21,6 +21,10 @@ Parameters:
     Type: String
     Default: ''
     Description: Optional Route53 hosted zone ID for the domain.
+  CertificateArn:
+    Type: String
+    Default: ''
+    Description: ARN of the ACM certificate for HTTPS. Leave empty to create without HTTPS.
   AppStackName:
     Type: String
     Default: arss-it-solutions-app
@@ -194,7 +198,7 @@ Resources:
                 Capabilities: CAPABILITY_IAM,CAPABILITY_NAMED_IAM
                 TemplatePath: SourceOutput::app-template.yml
                 ParameterOverrides: !Sub |
-                  {"LambdaCodeBucket":"${ArtifactBucket}","LambdaCodeKey":"lambda.zip","DomainName":"${DomainName}","HostedZoneId":"${HostedZoneId}"}
+                  {"LambdaCodeBucket":"${ArtifactBucket}","LambdaCodeKey":"lambda.zip","DomainName":"${DomainName}","HostedZoneId":"${HostedZoneId}","CertificateArn":"${CertificateArn}"}
 Outputs:
   PipelineName:
     Description: CodePipeline pipeline name
