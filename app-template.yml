@@ -40,7 +40,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: arss-it-solutions-website
-      Runtime: nodejs20.x
+      Runtime: nodejs22.x
       Handler: index.handler
       Role: !GetAtt WebsiteExecutionRole.Arn
       Code:
@@ -53,7 +53,6 @@ Resources:
       Environment:
         Variables:
           NODE_ENV: production
-          PORT: '9000'
   AppVpc:
     Type: AWS::EC2::VPC
     Properties:
